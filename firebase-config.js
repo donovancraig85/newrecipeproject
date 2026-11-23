@@ -1,8 +1,9 @@
 export const firebaseConfig = {
-  apiKey: "PASTE_API_KEY_HERE",
-  authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
-  projectId: "PASTE_PROJECT_ID",
-  storageBucket: "PASTE_STORAGE_BUCKET",
-  messagingSenderId: "PASTE_SENDER_ID",
-  appId: "PASTE_APP_ID"
+  apiKey: "AIzaSyBO4vkTF6KnyldDHBWTE9AspmZz-5nwD4o",
+  authDomain: "family-recipes-dd1b8.firebaseapp.com",
+  projectId: "family-recipes-dd1b8",
+  storageBucket: "family-recipes-dd1b8.firebasestorage.app",
+  messagingSenderId: "827359282895",
+  appId: "1:827359282895:web:759be780e43e977f0959ba",
+  measurementId: "G-XXY8B8QSE3"
 };
