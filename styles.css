@@ -10,3 +10,5 @@ body:has(#navHome.active) main{max-width:1180px}body:has(#navHome.active) .hero{
 
 /* Page heading cleanup */
 .recipe-library-view .library-toolbar{padding-top:30px}.recipe-library-view .library-toolbar>div:first-child h2{margin-bottom:0}.recipe-library-view .cats{margin-top:12px}
+
+.empty-state{grid-column:1/-1;text-align:center;padding:52px 24px;border:1px dashed var(--line);border-radius:18px;color:var(--muted)}.empty-state h3{font:400 28px Georgia,'Times New Roman',serif;color:var(--navy);margin:0 0 8px}
