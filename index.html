@@ -49,32 +49,21 @@ async function extractFileText(file){
   throw new Error('Choose a TXT, PDF, or DOCX file.');
 }
 function parseRecipeText(raw,fileName){
-  const text=raw.replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
-  let lines=text.split('\n').map(x=>x.trim().replace(/^[|\[\]{}]+|[|\[\]{}]+$/g,'').trim()).filter(Boolean);
-  const clean=x=>x.replace(/[•·]+/g,' ').replace(/\s+/g,' ').trim();
-  lines=lines.map(clean).filter(Boolean);
-  const lower=lines.map(x=>x.toLowerCase());
-  const isIngredientHead=x=>/^(ingredients?|ingredient list|what you need)\b/i.test(x);
-  const isInstructionHead=x=>/^(instructions?|directions?|method|preparation|steps?)\b/i.test(x);
-  let ii=lines.findIndex(isIngredientHead),di=lines.findIndex(isInstructionHead);
-  let title=lines[0]||fileName.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' '),description='',ingredients='',instructions='';
-  // OCR sometimes clips the first character of a large title. Prefer filename only when the OCR title is extremely short.
-  if(title.length<4)title=fileName.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ');
-  if(ii>=0){
-    description=lines.slice(1,ii).filter(x=>!/^three milks cake$/i.test(x)).join('\n');
-    let ingredientEnd=di>ii?di:lines.length;
-    ingredients=lines.slice(ii+1,ingredientEnd).filter(x=>!/^serves?\s*\d+/i.test(x)).join('\n');
-    if(di>ii)instructions=lines.slice(di+1).join('\n');
-  } else {
-    // Printed recipe fallback. Treat known subsection labels and measured lines as ingredients.
-    const sectionLabel=/^(cake|syrup|frosting|sauce|filling|topping|dough|batter|crust|glaze|marinade|dressing)$/i;
-    const measured=/^(\d+([\s¼½¾⅓⅔⅛⅜⅝⅞\/.-]*\d*)?|[¼½¾⅓⅔⅛⅜⅝⅞])\s+\S+/;
-    let first=lines.findIndex((x,i)=>i>0&&(sectionLabel.test(x)||measured.test(x)));
-    if(first>0){description=lines.slice(1,first).filter(x=>!/^serves?\s*\d+/i.test(x)&&!/^three milks cake$/i.test(x)).join('\n');let split=lines.findIndex((x,i)=>i>first&&isInstructionHead(x));if(split<0)split=lines.length;ingredients=lines.slice(first,split).filter(x=>!/^serves?\s*\d+/i.test(x)).join('\n');if(split<lines.length)instructions=lines.slice(split+1).join('\n')}else description=lines.slice(1).join('\n');
-  }
-  // Keep ingredient subsections, and fix a few common OCR fraction substitutions only when isolated at line start.
-  ingredients=ingredients.split('\n').map(x=>x.replace(/^12\s+(teaspoon|cup|cups)\b/i,'½ $1').replace(/^1%\s+(cups?)\b/i,'1½ $1')).join('\n');
-  return{title,description,ingredients,instructions};
+ const text=raw.replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
+ let lines=text.split('\n').map(x=>x.trim().replace(/^[|\[\]{}]+|[|\[\]{}]+$/g,'').trim()).filter(Boolean);
+ const frac=x=>x.replace(/^%\s+(teaspoon|cup|cups)\b/i,'½ $1').replace(/^12\s+(teaspoon|cup|cups)\b/i,'½ $1').replace(/^1[%½]\s+(cups?)\b/i,'1½ $1').replace(/^1[¼%]\s+(cups?)\b/i,'1¼ $1');
+ lines=lines.map(x=>frac(x.replace(/[•·]+/g,' ').replace(/\s+/g,' ').trim()));
+ const ingredientHead=x=>/^(ingredients?|ingredient list|what you need)\b/i.test(x),instructionHead=x=>/^(instructions?|directions?|method|preparation|steps?)\b/i.test(x),section=x=>/^(cake|syrup|frosting|sauce|filling|topping|dough|batter|crust|glaze|marinade|dressing)$/i.test(x);
+ let ii=lines.findIndex(ingredientHead),di=lines.findIndex(instructionHead);
+ let title=lines[0]||fileName.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' '),description='',ingredients='',instructions='';
+ if(title.length<4)title=fileName.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ');
+ // Fix continuation lines commonly produced by OCR. Only joins obvious non-ingredient continuations.
+ const normalized=[];
+ for(const line of lines){const prev=normalized.at(-1)||'';if(normalized.length&&(/^(a party mood!?\)?|party mood!?\)?|if you are in)$/i.test(line)||(/\bin$/i.test(prev)&&/^[a-z]/.test(line))))normalized[normalized.length-1]=prev+' '+line;else normalized.push(line)}
+ lines=normalized;ii=lines.findIndex(ingredientHead);di=lines.findIndex(instructionHead);
+ if(ii>=0){description=lines.slice(1,ii).filter(x=>!/^(three milks cake|serves?\s*\d+)$/i.test(x)).join('\n');const end=di>ii?di:lines.length;ingredients=lines.slice(ii+1,end).filter(x=>!/^serves?\s*\d+/i.test(x)).join('\n');if(di>ii)instructions=lines.slice(di+1).join('\n')}
+ else{let first=lines.findIndex((x,i)=>i>0&&(section(x)||/^(\d+|[¼½¾⅓⅔⅛⅜⅝⅞])\s+\S+/.test(x)));if(first>0){description=lines.slice(1,first).filter(x=>!/^serves?\s*\d+/i.test(x)&&!/^three milks cake$/i.test(x)).join('\n');let split=lines.findIndex((x,i)=>i>first&&instructionHead(x));if(split<0)split=lines.length;ingredients=lines.slice(first,split).filter(x=>!/^serves?\s*\d+/i.test(x)).join('\n');if(split<lines.length)instructions=lines.slice(split+1).join('\n')}else description=lines.slice(1).join('\n')}
+ return{title,description,ingredients,instructions};
 }
 $('importForm').onsubmit=async e=>{e.preventDefault();const file=$('importFile').files[0];if(!file)return;try{$('importStatus').textContent='Extracting text...';const raw=await extractFileText(file),parsed=parseRecipeText(raw,file.name);importDialog.close();openForm();$('rfHeading').textContent='Review Imported Recipe';$('rTitle').value=parsed.title;$('rDesc').value=parsed.description;$('rIng').value=parsed.ingredients;$('rIns').value=parsed.instructions;const dt=new DataTransfer();dt.items.add(file);$('rFile').files=dt.files;$('recipeMsg').textContent='Review every field and correct anything before saving.'}catch(err){$('importStatus').textContent=err.message}};
 async function upload(file,path){const r=ref(storage,path);await uploadBytes(r,file);return{path:r.fullPath,url:await getDownloadURL(r)}}
