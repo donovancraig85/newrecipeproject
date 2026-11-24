@@ -12,3 +12,6 @@ body:has(#navHome.active) main{max-width:1180px}body:has(#navHome.active) .hero{
 .recipe-library-view .library-toolbar{padding-top:30px}.recipe-library-view .library-toolbar>div:first-child h2{margin-bottom:0}.recipe-library-view .cats{margin-top:12px}
 
 .empty-state{grid-column:1/-1;text-align:center;padding:52px 24px;border:1px dashed var(--line);border-radius:18px;color:var(--muted)}.empty-state h3{font:400 28px Georgia,'Times New Roman',serif;color:var(--navy);margin:0 0 8px}
+
+/* Exact home centering */
+body:has(#navHome.active) main{width:100%;max-width:none;padding-left:0;padding-right:0}body:has(#navHome.active) #library{width:100%}body:has(#navHome.active) .hero{width:min(820px,calc(100% - 40px));margin:0 auto;padding-left:0;padding-right:0;align-items:stretch}body:has(#navHome.active) .eyebrow,body:has(#navHome.active) .hero h1,body:has(#navHome.active) .hero-subtitle,body:has(#navHome.active) .hero>p{text-align:center}body:has(#navHome.active) .hero-search{width:100%;margin-left:auto;margin-right:auto}body:has(#navHome.active) .feature-row{width:min(720px,100%);margin-left:auto;margin-right:auto}body:has(#navHome.active) .leaf-divider{width:min(420px,100%);margin-left:auto;margin-right:auto}.site-header{grid-template-columns:260px minmax(420px,1fr) minmax(300px,auto)}.site-header nav{justify-self:center}.header-account{justify-self:end}
