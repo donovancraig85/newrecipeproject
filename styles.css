@@ -100,3 +100,14 @@ body:has(#navHome.active) .feature-row{max-width:720px!important}
 
 /* v15 standalone random recipe section */
 .random-section{max-width:1080px;margin:0 auto;padding:0 34px 80px}.random-inner{padding:38px 42px;text-align:center;background:var(--soft);border:1px solid var(--line);border-radius:20px}.random-inner h2{font:400 36px Georgia,'Times New Roman',serif;margin:7px 0 8px;color:var(--navy)}.random-inner p{margin:0 0 20px;color:var(--muted)}.random-inner button{border:0;border-radius:9px;padding:13px 22px;background:var(--bronze);color:white;cursor:pointer}@media(max-width:650px){.random-section{padding:0 18px 55px}.random-inner{padding:30px 20px}}@media print{.random-section{display:none!important}}
+
+/* v16 repaired home controls */
+.feature-row a.feature{text-decoration:none;color:var(--navy)}
+.feature{position:relative;z-index:2;pointer-events:auto!important}
+.feature span,.feature b,.feature small{pointer-events:none}
+body:has(#navHome.active) .hero{padding-top:58px!important}
+body:has(#navHome.active) .hero h1{margin-top:0!important}
+body:has(#navHome.active) .hero-search{margin-top:34px!important}
+body:has(#navHome.active) .feature-row{margin-top:34px!important}
+.eyebrow,.hero>p,.leaf-divider{display:none!important}
+.home-recent,.random-section{position:relative;z-index:1}
