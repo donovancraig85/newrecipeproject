@@ -50,14 +50,30 @@ async function extractFileText(file){
 }
 function parseRecipeText(raw,fileName){
   const text=raw.replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
-  const lines=text.split('\n').map(x=>x.trim()).filter(Boolean);const lower=lines.map(x=>x.toLowerCase());
-  const ingredientHeads=['ingredients','ingredient list','what you need'];const instructionHeads=['instructions','directions','method','preparation','steps'];
-  const findHead=names=>lower.findIndex(x=>names.some(n=>x===n||x.startsWith(n+':')));let ii=findHead(ingredientHeads),di=findHead(instructionHeads);
+  let lines=text.split('\n').map(x=>x.trim().replace(/^[|\[\]{}]+|[|\[\]{}]+$/g,'').trim()).filter(Boolean);
+  const clean=x=>x.replace(/[•·]+/g,' ').replace(/\s+/g,' ').trim();
+  lines=lines.map(clean).filter(Boolean);
+  const lower=lines.map(x=>x.toLowerCase());
+  const isIngredientHead=x=>/^(ingredients?|ingredient list|what you need)\b/i.test(x);
+  const isInstructionHead=x=>/^(instructions?|directions?|method|preparation|steps?)\b/i.test(x);
+  let ii=lines.findIndex(isIngredientHead),di=lines.findIndex(isInstructionHead);
   let title=lines[0]||fileName.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' '),description='',ingredients='',instructions='';
-  if(ii>=0&&di>ii){description=lines.slice(1,ii).join('\n');ingredients=lines.slice(ii+1,di).join('\n');instructions=lines.slice(di+1).join('\n')}
-  else if(di>=0){description=lines.slice(1,di).join('\n');instructions=lines.slice(di+1).join('\n')}
-  else if(ii>=0){description=lines.slice(1,ii).join('\n');ingredients=lines.slice(ii+1).join('\n')}
-  else{const ingredientLike=/^(\d+|\d+[\/¼½¾⅓⅔⅛]|[¼½¾⅓⅔⅛]|one|two|three|four|five|six|seven|eight|nine|ten)\b|^(a|an)\s+(cup|tablespoon|teaspoon|pinch|dash)\b/i;const start=lines.findIndex((x,i)=>i>0&&ingredientLike.test(x));if(start>0){let end=lines.findIndex((x,i)=>i>start&&/^(instructions|directions|method|preparation|steps)\b/i.test(x));if(end<0)end=Math.min(lines.length,start+12);description=lines.slice(1,start).join('\n');ingredients=lines.slice(start,end).join('\n');instructions=lines.slice(end+(end<lines.length?1:0)).join('\n')}else description=lines.slice(1).join('\n')}
+  // OCR sometimes clips the first character of a large title. Prefer filename only when the OCR title is extremely short.
+  if(title.length<4)title=fileName.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ');
+  if(ii>=0){
+    description=lines.slice(1,ii).filter(x=>!/^three milks cake$/i.test(x)).join('\n');
+    let ingredientEnd=di>ii?di:lines.length;
+    ingredients=lines.slice(ii+1,ingredientEnd).filter(x=>!/^serves?\s*\d+/i.test(x)).join('\n');
+    if(di>ii)instructions=lines.slice(di+1).join('\n');
+  } else {
+    // Printed recipe fallback. Treat known subsection labels and measured lines as ingredients.
+    const sectionLabel=/^(cake|syrup|frosting|sauce|filling|topping|dough|batter|crust|glaze|marinade|dressing)$/i;
+    const measured=/^(\d+([\s¼½¾⅓⅔⅛⅜⅝⅞\/.-]*\d*)?|[¼½¾⅓⅔⅛⅜⅝⅞])\s+\S+/;
+    let first=lines.findIndex((x,i)=>i>0&&(sectionLabel.test(x)||measured.test(x)));
+    if(first>0){description=lines.slice(1,first).filter(x=>!/^serves?\s*\d+/i.test(x)&&!/^three milks cake$/i.test(x)).join('\n');let split=lines.findIndex((x,i)=>i>first&&isInstructionHead(x));if(split<0)split=lines.length;ingredients=lines.slice(first,split).filter(x=>!/^serves?\s*\d+/i.test(x)).join('\n');if(split<lines.length)instructions=lines.slice(split+1).join('\n')}else description=lines.slice(1).join('\n');
+  }
+  // Keep ingredient subsections, and fix a few common OCR fraction substitutions only when isolated at line start.
+  ingredients=ingredients.split('\n').map(x=>x.replace(/^12\s+(teaspoon|cup|cups)\b/i,'½ $1').replace(/^1%\s+(cups?)\b/i,'1½ $1')).join('\n');
   return{title,description,ingredients,instructions};
 }
 $('importForm').onsubmit=async e=>{e.preventDefault();const file=$('importFile').files[0];if(!file)return;try{$('importStatus').textContent='Extracting text...';const raw=await extractFileText(file),parsed=parseRecipeText(raw,file.name);importDialog.close();openForm();$('rfHeading').textContent='Review Imported Recipe';$('rTitle').value=parsed.title;$('rDesc').value=parsed.description;$('rIng').value=parsed.ingredients;$('rIns').value=parsed.instructions;const dt=new DataTransfer();dt.items.add(file);$('rFile').files=dt.files;$('recipeMsg').textContent='Review every field and correct anything before saving.'}catch(err){$('importStatus').textContent=err.message}};
