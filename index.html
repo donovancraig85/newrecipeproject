@@ -31,7 +31,7 @@ async function extractFileText(file){
   if(file.type==='text/plain'||file.name.toLowerCase().endsWith('.txt'))return await file.text();
   if(file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf')){
     const bytes=new Uint8Array(await file.arrayBuffer()),pdf=await pdfjsLib.getDocument({data:bytes}).promise;let pages=[];
-    for(let n=1;n<=pdf.numPages;n++){const page=await pdf.getPage(n),content=await page.getTextContent();pages.push(content.items.map(i=>i.str).join(' '))}
+    for(let n=1;n<=pdf.numPages;n++){const page=await pdf.getPage(n),content=await page.getTextContent();let out=[],line=[],lastY=null;for(const item of content.items){const y=item.transform?.[5]??null;if(lastY!==null&&y!==null&&Math.abs(y-lastY)>3){if(line.length)out.push(line.join(' ').replace(/\s+/g,' ').trim());line=[]}if(item.str?.trim())line.push(item.str.trim());if(y!==null)lastY=y}if(line.length)out.push(line.join(' ').replace(/\s+/g,' ').trim());pages.push(out.join('\n'))}
     const text=pages.join('\n');if(text.replace(/\s/g,'').length<20)throw new Error('No usable text was found. This may be a scanned PDF and will need OCR support.');return text;
   }
   if(file.type==='application/vnd.openxmlformats-officedocument.wordprocessingml.document'||file.name.toLowerCase().endsWith('.docx')){
@@ -49,20 +49,18 @@ async function extractFileText(file){
   throw new Error('Choose a TXT, PDF, or DOCX file.');
 }
 function parseRecipeText(raw,fileName){
- const text=raw.replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
- let lines=text.split('\n').map(x=>x.trim().replace(/^[|\[\]{}]+|[|\[\]{}]+$/g,'').trim()).filter(Boolean);
- const frac=x=>x.replace(/^%\s+(teaspoon|cup|cups)\b/i,'½ $1').replace(/^12\s+(teaspoon|cup|cups)\b/i,'½ $1').replace(/^1[%½]\s+(cups?)\b/i,'1½ $1').replace(/^1[¼%]\s+(cups?)\b/i,'1¼ $1');
- lines=lines.map(x=>frac(x.replace(/[•·]+/g,' ').replace(/\s+/g,' ').trim()));
- const ingredientHead=x=>/^(ingredients?|ingredient list|what you need)\b/i.test(x),instructionHead=x=>/^(instructions?|directions?|method|preparation|steps?)\b/i.test(x),section=x=>/^(cake|syrup|frosting|sauce|filling|topping|dough|batter|crust|glaze|marinade|dressing)$/i.test(x);
+ let text=raw.replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
+ // Normalize common PDF extraction artifacts while preserving structure.
+ text=text.replace(/\bINGREDIENTS\b/gi,'\nINGREDIENTS\n').replace(/\b(Instructions|Directions|Method|Preparation)\b/gi,'\n$1\n').replace(/\b(Cake|Syrup|Frosting)\b/g,'\n$1\n').replace(/\s+(\d{1,2})\.\s+/g,'\n$1. ');
+ let lines=text.split('\n').map(x=>x.replace(/[*_]+/g,'').trim()).filter(Boolean);
+ const ingredientHead=x=>/^ingredients?\b/i.test(x),instructionHead=x=>/^(instructions?|directions?|method|preparation)\b/i.test(x),numbered=x=>/^\d{1,2}[.)]\s+/.test(x);
  let ii=lines.findIndex(ingredientHead),di=lines.findIndex(instructionHead);
+ if(di<0)di=lines.findIndex((x,i)=>i>0&&numbered(x));
  let title=lines[0]||fileName.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' '),description='',ingredients='',instructions='';
- if(title.length<4)title=fileName.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ');
- // Fix continuation lines commonly produced by OCR. Only joins obvious non-ingredient continuations.
- const normalized=[];
- for(const line of lines){const prev=normalized.at(-1)||'';if(normalized.length&&(/^(a party mood!?\)?|party mood!?\)?|if you are in)$/i.test(line)||(/\bin$/i.test(prev)&&/^[a-z]/.test(line))))normalized[normalized.length-1]=prev+' '+line;else normalized.push(line)}
- lines=normalized;ii=lines.findIndex(ingredientHead);di=lines.findIndex(instructionHead);
- if(ii>=0){description=lines.slice(1,ii).filter(x=>!/^(three milks cake|serves?\s*\d+)$/i.test(x)).join('\n');const end=di>ii?di:lines.length;ingredients=lines.slice(ii+1,end).filter(x=>!/^serves?\s*\d+/i.test(x)).join('\n');if(di>ii)instructions=lines.slice(di+1).join('\n')}
- else{let first=lines.findIndex((x,i)=>i>0&&(section(x)||/^(\d+|[¼½¾⅓⅔⅛⅜⅝⅞])\s+\S+/.test(x)));if(first>0){description=lines.slice(1,first).filter(x=>!/^serves?\s*\d+/i.test(x)&&!/^three milks cake$/i.test(x)).join('\n');let split=lines.findIndex((x,i)=>i>first&&instructionHead(x));if(split<0)split=lines.length;ingredients=lines.slice(first,split).filter(x=>!/^serves?\s*\d+/i.test(x)).join('\n');if(split<lines.length)instructions=lines.slice(split+1).join('\n')}else description=lines.slice(1).join('\n')}
+ // If PDF extraction collapsed title + subtitle + heading into first line, recover the title from text before known subtitle/heading.
+ const first=lines[0]||'';const marker=first.search(/\s+(Three Milks Cake|INGREDIENTS)\b/i);if(marker>2){title=first.slice(0,marker).trim();const remainder=first.slice(marker).trim();lines=[title,...remainder.split(/(?=Three Milks Cake|INGREDIENTS)/i).map(x=>x.trim()).filter(Boolean),...lines.slice(1)];ii=lines.findIndex(ingredientHead);di=lines.findIndex(instructionHead);if(di<0)di=lines.findIndex((x,i)=>i>ii&&numbered(x))}
+ if(ii>=0){description=lines.slice(1,ii).filter(x=>!/^three milks cake$/i.test(x)).join('\n');const end=di>ii?di:lines.length;ingredients=lines.slice(ii+1,end).filter(x=>!/^serves?['’]?\s*\d+/i.test(x)).join('\n');if(di>ii)instructions=lines.slice(di).join('\n')}
+ else{const n=lines.findIndex((x,i)=>i>0&&numbered(x));if(n>0){description=lines.slice(1,n).join('\n');instructions=lines.slice(n).join('\n')}else description=lines.slice(1).join('\n')}
  return{title,description,ingredients,instructions};
 }
 $('importForm').onsubmit=async e=>{e.preventDefault();const file=$('importFile').files[0];if(!file)return;try{$('importStatus').textContent='Extracting text...';const raw=await extractFileText(file),parsed=parseRecipeText(raw,file.name);importDialog.close();openForm();$('rfHeading').textContent='Review Imported Recipe';$('rTitle').value=parsed.title;$('rDesc').value=parsed.description;$('rIng').value=parsed.ingredients;$('rIns').value=parsed.instructions;const dt=new DataTransfer();dt.items.add(file);$('rFile').files=dt.files;$('recipeMsg').textContent='Review every field and correct anything before saving.'}catch(err){$('importStatus').textContent=err.message}};
