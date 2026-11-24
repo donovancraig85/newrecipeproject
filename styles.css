@@ -3,7 +3,10 @@
 
 .header-account{display:flex;align-items:center;gap:18px}.top-who{font-size:12px;color:var(--muted);white-space:nowrap;text-align:right}.recipe-library-view{padding-top:10px}.header-actions .auth-button{min-width:92px}.library-toolbar #addRecipe{margin-right:8px}@media(max-width:1120px){.top-who{max-width:220px;white-space:normal}}@media(max-width:650px){.top-who{display:none}}
 
-.view-heading{font:400 38px/1 Georgia,'Times New Roman',serif;color:var(--navy);padding:28px 0 2px}.view-heading.hidden{display:none!important}
+
 
 /* Home polish */
 body:has(#navHome.active) main{max-width:1180px}body:has(#navHome.active) .hero{padding:42px 0 24px;min-height:calc(100vh - 104px);display:flex;flex-direction:column;justify-content:flex-start}body:has(#navHome.active) .hero h1{margin-top:14px}body:has(#navHome.active) .hero-search{margin-top:24px}body:has(#navHome.active) .feature-row{margin-top:30px}body:has(#navHome.active) .leaf-divider{margin-top:24px}.hero-search>span{line-height:1;display:grid;place-items:center}.feature b{white-space:nowrap}@media(max-width:650px){body:has(#navHome.active) .hero{min-height:auto;padding-bottom:36px}}
+
+/* Page heading cleanup */
+.recipe-library-view .library-toolbar{padding-top:30px}.recipe-library-view .library-toolbar>div:first-child h2{margin-bottom:0}.recipe-library-view .cats{margin-top:12px}
