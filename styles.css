@@ -202,4 +202,4 @@ body:has(#navHome.active) .hero{min-height:auto!important;padding-bottom:46px!im
 
 /* v45 common recipe tag picker */.tag-picker{display:grid;gap:8px}.tag-choices{display:flex;gap:7px;flex-wrap:wrap}.tag-choice{background:#fff!important;color:var(--navy)!important;border:1px solid var(--line)!important;border-radius:999px!important;padding:7px 11px!important;font-size:12px!important}.tag-choice.selected{background:var(--navy)!important;color:#fff!important;border-color:var(--navy)!important}.tag-choice:hover{border-color:var(--bronze)!important}
 
-/* v47 enhanced photo OCR */.import-warnings strong{display:block;margin-bottom:4px}.import-warnings li:first-child{font-weight:700}.import-preview-dialog .import-warnings{line-height:1.45}
+/* v48 smart printed and handwritten OCR */.import-warnings:has(li:first-child){border-color:#c87063;background:#fff2ef}.import-warnings li{margin:4px 0}
